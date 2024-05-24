@@ -1,6 +1,6 @@
-#### projeto-cloud
+# projeto-cloud
 
-### Pedro Drumond
+## Pedro Drumond
 
 ## Sobre o Projeto
 O projeto é uma implementação de uma infraestrutura na AWS utilizando os serviços de VPC, subnets, Auto Scaling com instâncias EC2, Application Load Balancer (ALB), DynamoDB e endpoints de VPC. O objetivo foi criar uma arquitetura que fosse escalável e segura para aplicar uma aplicação.
@@ -9,6 +9,7 @@ O projeto é uma implementação de uma infraestrutura na AWS utilizando os serv
 A arquitetura proposta consiste em uma Virtual Private Cloud (VPC) que pode hospedar subnets públicas e privadas, configuradas para suportar instâncias EC2 que são escaladas automaticamente com base na demanda. Um Application Load Balancer (ALB) distribui o tráfego de entrada entre as instâncias EC2 para garantir alta disponibilidade e escalabilidade. Um banco de dados DynamoDB é utilizado para armazenamento de dados, proporcionando alta performance e escalabilidade automática. Para melhorar a segurança e a eficiência, um endpoint VPC é configurado para acesso ao DynamoDB sem a necessidade de saída pela internet.
 
 ![alt text](image.png)
+Link da imagem: https://avinetworks.com/glossary/elastic-load-balancer/
 
 ## Sobre as tectologias que foram empregadas para o projeto
 
@@ -22,7 +23,7 @@ O Amazon Virtual Private Cloud (Amazon VPC) permite a criação de uma rede virt
 
 ## Passo a Passo
 
-# Antes de começar
+### Antes de começar
 Verifique se seu AWS CLI está instalado, se não estiver, basta segui a documentação do site: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
 Tendo o AWS CLI instalado, você precisa configurá-lo com suas credenciais através do comando:
@@ -31,13 +32,13 @@ Tendo o AWS CLI instalado, você precisa configurá-lo com suas credenciais atra
 aws configure
 '''
 
-# Criar
+### Criar
 aws cloudformation create-stack --stack-name jameStack --template-body file://projeto.yaml --capabilities CAPABILITY_IAM --region sa-east-1
 
-# Update
+### Update
 aws cloudformation update-stack --stack-name jameStack --template-body file://projeto.yaml --capabilities CAPABILITY_IAM --region sa-east-1
 
-# Delete
+### Delete
 aws cloudformation delete-stack --stack-name jameStack --region sa-east-1
 
 ## Região
