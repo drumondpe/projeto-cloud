@@ -30,7 +30,6 @@ Tendo o AWS CLI instalado, você precisa configurá-lo com suas credenciais atra
 
 '''sh
 aws configure
-'''
 
 ### Criar
 aws cloudformation create-stack --stack-name jameStack --template-body file://projeto.yaml --capabilities CAPABILITY_IAM --region sa-east-1
