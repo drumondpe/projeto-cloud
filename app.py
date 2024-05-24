@@ -18,6 +18,10 @@ def index():
     users.sort(key=lambda x: x['created_at'], reverse=True)
     return render_template('index.html', users=users)
 
+@app.route("/health")
+def health_check():
+    return "OK"
+
 @app.route('/user', methods=['POST'])
 def create_user():
     name = request.form['name']
