@@ -16,7 +16,7 @@ def index():
     items = response.get('Items', [])
     for item in items:
         if 'created_at' not in item:
-            item['created_at'] = '1970-01-01T00:00:00.000000'  # Data default para itens sem o campo
+            item['created_at'] = '1970-01-01T00:00:00.000000'  
     items.sort(key=lambda x: x['created_at'], reverse=True)
     return render_template('index.html', posts=items)
 
