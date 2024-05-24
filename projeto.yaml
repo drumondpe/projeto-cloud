@@ -120,7 +120,7 @@ Resources:
     Properties:
       ImageId: ami-04716897be83e3f04 # Substitua por uma AMI válida em sua região
       InstanceType: t2.medium
-      KeyName: EnzoProjeto # Substitua por sua chave pública EC2 Key Pair existente
+      KeyName: acesso-gomes # Substitua por sua chave pública EC2 Key Pair existente
       SecurityGroupIds:
         - !Ref MySecurityGroup
       SubnetId: !Ref MySubnet
@@ -135,7 +135,7 @@ Resources:
     Properties:
       ImageId: ami-04716897be83e3f04 # Substitua pela AMI da sua aplicação
       InstanceType: t2.medium
-      KeyName: EnzoProjeto
+      KeyName: acesso-gomes
       SecurityGroups:
         - Ref: MySecurityGroup # Referencie o seu Security Group aqui
       IamInstanceProfile: !Ref EC2InstanceProfile # Adicionando o instance profile

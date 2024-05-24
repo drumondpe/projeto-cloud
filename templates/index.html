@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Users</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1>Crie um novo usuário</h1>
+            <form action="/user" method="post" class="create-user-form">
+                <input type="text" id="name" name="name" placeholder="Nome:">
+                <input type="text" id="email" name="email" placeholder="Email:">
+                <input type="submit" value="Criar" class="submit-button">
+            </form>
+        </div>
+        <h1>Usuários já criados</h1>
+        {% for user in users %}
+            <div class="post">
+                <h2>{{ user['Name'] }}</h2>
+                <p>{{ user['Email'] }}</p>
+                <div class="buttons">
+                    <a href="{{ url_for('edit_user', user_id=user['Id']) }}" class="edit-button">Editar</a>
+                    <form action="{{ url_for('delete_user', user_id=user['Id']) }}" method="post" style="display:inline;">
+                        <button type="submit" class="delete-button">Deletar</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
