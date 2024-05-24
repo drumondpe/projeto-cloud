@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Template estendido com EC2 Auto Scaling, ALB e Dynamo
+Description: Infraestrutura na AWS com EC2 Auto Scaling, ALB e DynamoDB para escalabilidade e alta disponibilidade
 
 Resources:
   # Criação da VPC
