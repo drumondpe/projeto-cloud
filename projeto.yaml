@@ -24,28 +24,6 @@ Resources:
       VpcId: !Ref MyVPC
       InternetGatewayId: !Ref MyInternetGateway
 
-  # Subnets públicas
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref MyVPC
-      CidrBlock: 10.0.3.0/24
-      AvailabilityZone: sa-east-1a
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-PublicSubnet1"
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref MyVPC
-      CidrBlock: 10.0.4.0/24
-      AvailabilityZone: sa-east-1b
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-PublicSubnet2"
-
   # Tabela de rotas públicas
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -61,47 +39,41 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref MyInternetGateway
 
+  # Subnets públicas
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: sa-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicSubnet1"
+  
   # Associação de subnets à tabela de rotas públicas
   SubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
-  SubnetRouteTableAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
-
-  # Subnet privada
-  MySubnet:
+      RouteTableId: !Ref PublicRouteTable  
+        
+  PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: sa-east-1a
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: sa-east-1b
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MySubnet"
+          Value: !Sub "${AWS::StackName}-PublicSubnet2"
 
-  # Security Group permitindo SSH e porta 5000
-  MySecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Permitir SSH
-      VpcId: !Ref MyVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 5000
-          ToPort: 5000
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-MySecurityGroup"
+  SubnetRouteTableAssociation2:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnet2
+        RouteTableId: !Ref PublicRouteTable
 
   # Instância EC2
   MyEC2Instance:
@@ -117,109 +89,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-MyEC2Instance"
-
-  # Configuração de inicialização do Auto Scaling
-  AppLaunchConfig:
-    Type: AWS::AutoScaling::LaunchConfiguration
-    Properties:
-      ImageId: ami-04716897be83e3f04 
-      InstanceType: t2.medium
-      KeyName: acesso-gomes
-      SecurityGroups:
-        - Ref: MySecurityGroup 
-      IamInstanceProfile: !Ref EC2InstanceProfile 
-      UserData: 
-        Fn::Base64: |
-          #!/bin/bash
-          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-          set -x
-          sudo apt-get update -y
-          sudo apt-get upgrade -y
-          sudo apt-get install -y python3-pip git
-          echo "export STACK_NAME=${AWS::StackName}" | sudo tee -a /etc/profile.d/stackname.sh
-          source /etc/profile.d/stackname.sh
-          git clone https://github.com/drumondpe/projeto-cloud.git /home/ubuntu/projeto-cloud
-          cd /home/ubuntu/projeto-cloud
-          pip3 install -r requirements.txt --break-system-packages
-          python3 app.py
-
-  # Grupo de Auto Scaling
-  AppAutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      VPCZoneIdentifier:
-        - Ref: PublicSubnet1
-        - Ref: PublicSubnet2
-      LaunchConfigurationName:
-        Ref: AppLaunchConfig
-      MinSize: '3'
-      MaxSize: '4'
-      TargetGroupARNs:
-        - Ref: MyAppTargetGroup
-      HealthCheckGracePeriod: 300
-      HealthCheckType: ELB
-      MetricsCollection:
-        - Granularity: "1Minute"
-      Tags:
-        - Key: Name
-          Value: ASG-EC2-Instance
-          PropagateAtLaunch: true
-
-  # Políticas de Auto Scaling
-  ScaleUpPolicy:
-    Type: AWS::AutoScaling::ScalingPolicy
-    Properties:
-      AutoScalingGroupName:
-        Ref: AppAutoScalingGroup
-      PolicyType: SimpleScaling
-      AdjustmentType: ChangeInCapacity
-      Cooldown: '300'
-      ScalingAdjustment: '1'
-  ScaleDownPolicy:
-    Type: AWS::AutoScaling::ScalingPolicy
-    Properties:
-      AutoScalingGroupName:
-        Ref: AppAutoScalingGroup
-      PolicyType: SimpleScaling
-      AdjustmentType: ChangeInCapacity
-      Cooldown: '300'
-      ScalingAdjustment: '-1'
-
-  # Alarmes de CloudWatch para Auto Scaling
-  HighCpuAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: "Alarme quando a CPU excede 70%"
-      MetricName: CPUUtilization
-      Namespace: AWS/EC2
-      Statistic: Average
-      Period: '300'
-      EvaluationPeriods: '1'
-      Threshold: '70'
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      AlarmActions:
-        - Ref: ScaleUpPolicy
-      Dimensions:
-        - Name: AutoScalingGroupName
-          Value: 
-            Ref: AppAutoScalingGroup
-  LowCpuAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: "Alarme quando a CPU cai abaixo de 30%"
-      MetricName: CPUUtilization
-      Namespace: AWS/EC2
-      Statistic: Average
-      Period: '300'
-      EvaluationPeriods: '1'
-      Threshold: '30'
-      ComparisonOperator: LessThanOrEqualToThreshold
-      AlarmActions:
-        - Ref: ScaleDownPolicy
-      Dimensions:
-        - Name: AutoScalingGroupName
-          Value: 
-            Ref: AppAutoScalingGroup
 
   # Load Balancer e Listener
   MyALB:
@@ -280,6 +149,139 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-ALBSecurityGroup"
 
+  # Security Group permitindo SSH e porta 5000
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permitir SSH
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MySecurityGroup"
+
+  # Subnet privada
+  MySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: sa-east-1a
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MySubnet"
+
+  # Grupo de Auto Scaling
+  AppAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+      LaunchConfigurationName:
+        Ref: AppLaunchConfig
+      MinSize: '3'
+      MaxSize: '4'
+      TargetGroupARNs:
+        - Ref: MyAppTargetGroup
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      MetricsCollection:
+        - Granularity: "1Minute"
+      Tags:
+        - Key: Name
+          Value: ASG-EC2-Instance
+          PropagateAtLaunch: true
+
+  # Políticas de Auto Scaling
+  ScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: AppAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '300'
+      ScalingAdjustment: '1'
+  ScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: AppAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '300'
+      ScalingAdjustment: '-1'
+
+  # Configuração de inicialização do Auto Scaling
+  AppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-04716897be83e3f04 
+      InstanceType: t2.medium
+      KeyName: acesso-gomes
+      SecurityGroups:
+        - Ref: MySecurityGroup 
+      IamInstanceProfile: !Ref EC2InstanceProfile 
+      UserData: 
+        Fn::Base64: |
+          #!/bin/bash
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          set -x
+          sudo apt-get update -y
+          sudo apt-get upgrade -y
+          sudo apt-get install -y python3-pip git
+          echo "export STACK_NAME=${AWS::StackName}" | sudo tee -a /etc/profile.d/stackname.sh
+          source /etc/profile.d/stackname.sh
+          git clone https://github.com/drumondpe/projeto-cloud.git /home/ubuntu/projeto-cloud
+          cd /home/ubuntu/projeto-cloud
+          pip3 install -r requirements.txt --break-system-packages
+          python3 app.py
+
+  # Alarmes de CloudWatch para Auto Scaling
+  HighCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarme quando a CPU excede 70%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '70'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - Ref: ScaleUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: 
+            Ref: AppAutoScalingGroup
+  LowCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarme quando a CPU cai abaixo de 30%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '30'
+      ComparisonOperator: LessThanOrEqualToThreshold
+      AlarmActions:
+        - Ref: ScaleDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: 
+            Ref: AppAutoScalingGroup
+
   # Tabela DynamoDB
   MyDynamoDBTable:
     Type: AWS::DynamoDB::Table
@@ -336,5 +338,3 @@ Resources:
       VpcEndpointType: Gateway
       RouteTableIds:
         - !Ref PublicRouteTable
-
-###
