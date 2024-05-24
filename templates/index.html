@@ -3,29 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
     <title>Users Dashboard</title>
 </head>
 <body>
-    <h1>Users Dashboard</h1>
-    <h2>Create New User</h2>
+    <h1>Crie seu novo usuário</h1>
     <form action="/post" method="post">
-        <label for="title">Title:</label>
+        <label for="title">Nome:</label>
         <input type="text" id="title" name="title" required><br>
-        <label for="content">Content:</label>
+        <label for="content">Email:</label>
         <textarea id="content" name="content" required></textarea><br>
-        <button type="submit">Create User</button>
+        <button type="submit" class="create-button">Criar usuário</button>
     </form>
 
-    <ul>
-        {% for post in posts %}
-            <li>
-                <strong>{{ post.Title }}</strong>: {{ post.Content }} (Created at: {{ post.created_at }})
-                <form method="POST" action="/delete/{{ post.Id }}">
-                    <button type="submit">Delete</button>
-                </form>
-                <a href="/edit/{{ post.Id }}">Edit</a>
-            </li>
-        {% endfor %}
-    </ul>
+    <h2>Usuários</h2>
+        <ul>
+            {% for post in posts %}
+                <li>
+                    <strong>{{ post.Title }}</strong>: {{ post.Content }} (Created at: {{ post.created_at }})
+                    <form method="POST" action="/delete/{{ post.Id }}">
+                        <button type="submit" class="delete-button">Deletar</button>
+                    </form>
+                    <a href="/edit/{{ post.Id }}">Editar</a>
+                </li>
+            {% endfor %}
+        </ul>
 </body>
 </html>
