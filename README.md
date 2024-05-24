@@ -19,4 +19,4 @@ aws cloudformation create-stack --stack-name jameStack --template-body file://pr
 aws cloudformation update-stack --stack-name jameStack --template-body file://projeto.yaml --capabilities CAPABILITY_IAM --region sa-east-1
 
 ## Delete
- aws cloudformation delete-stack --jameStack MyInfrastructure
+ aws cloudformation delete-stack --stack-name jameStack --region sa-east-1
