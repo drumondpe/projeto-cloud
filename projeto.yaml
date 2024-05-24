@@ -4,7 +4,6 @@ Description: Template estendido com EC2 Auto Scaling, ALB e Dynamo
 
 Resources:
   MyVPC:
-    
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
@@ -12,25 +11,20 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-MyVPC"
       
-
   MyInternetGateway:
-    
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-MyInternetGateway"
      
-
   GatewayAttachment:
-    
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref MyVPC
       InternetGatewayId: !Ref MyInternetGateway
 
   PublicSubnet1:
-    
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC
@@ -42,7 +36,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-PublicSubnet1"
 
   PublicSubnet2:
-    
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC
@@ -54,7 +47,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-PublicSubnet2"
 
   PublicRouteTable:
-    
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref MyVPC
@@ -63,7 +55,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-PublicRouteTable"
 
   PublicRoute:
-    
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PublicRouteTable
@@ -71,21 +62,18 @@ Resources:
       GatewayId: !Ref MyInternetGateway
 
   SubnetRouteTableAssociation1:
-    
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet1
       RouteTableId: !Ref PublicRouteTable
 
   SubnetRouteTableAssociation2:
-    
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
   MySubnet:
-    
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC
@@ -96,7 +84,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-MySubnet"
 
   MySecurityGroup:
-    
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Permitir SSH
@@ -115,16 +102,15 @@ Resources:
           Value: !Sub "${AWS::StackName}-MySecurityGroup"
 
   MyEC2Instance:
-    
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-04716897be83e3f04 # Substitua por uma AMI válida em sua região
+      ImageId: ami-04716897be83e3f04 
       InstanceType: t2.medium
-      KeyName: acesso-gomes # Substitua por sua chave pública EC2 Key Pair existente
+      KeyName: acesso-gomes 
       SecurityGroupIds:
         - !Ref MySecurityGroup
       SubnetId: !Ref MySubnet
-      IamInstanceProfile: !Ref EC2InstanceProfile # Adicionando o instance profile
+      IamInstanceProfile: !Ref EC2InstanceProfile 
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-MyEC2Instance"
@@ -133,12 +119,12 @@ Resources:
     
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-04716897be83e3f04 # Substitua pela AMI da sua aplicação
+      ImageId: ami-04716897be83e3f04 
       InstanceType: t2.medium
       KeyName: acesso-gomes
       SecurityGroups:
-        - Ref: MySecurityGroup # Referencie o seu Security Group aqui
-      IamInstanceProfile: !Ref EC2InstanceProfile # Adicionando o instance profile
+        - Ref: MySecurityGroup 
+      IamInstanceProfile: !Ref EC2InstanceProfile 
       UserData: 
         Fn::Base64: |
           #!/bin/bash
@@ -166,7 +152,6 @@ Resources:
           python3 app.py
 
   AppAutoScalingGroup:
-    
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
@@ -188,7 +173,6 @@ Resources:
           PropagateAtLaunch: true
 
   ScaleUpPolicy:
-    
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AutoScalingGroupName:
@@ -199,7 +183,6 @@ Resources:
       ScalingAdjustment: '1'
 
   ScaleDownPolicy:
-    
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AutoScalingGroupName:
@@ -210,7 +193,6 @@ Resources:
       ScalingAdjustment: '-1'
 
   HighCpuAlarm:
-    
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: "Alarm when CPU exceeds 70%"
@@ -229,7 +211,6 @@ Resources:
             Ref: AppAutoScalingGroup
 
   LowCpuAlarm:
-    
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: "Alarm when CPU falls below 30%"
@@ -248,7 +229,6 @@ Resources:
             Ref: AppAutoScalingGroup
 
   MyALB:
-    
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Sub "${AWS::StackName}-MyALB"
@@ -264,7 +244,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-MyALB"
 
   MyALBListener:
-    
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -275,7 +254,6 @@ Resources:
       Protocol: HTTP
 
   MyAppTargetGroup:
-    
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       VpcId: !Ref MyVPC
@@ -290,7 +268,6 @@ Resources:
       UnhealthyThresholdCount: 3
 
   ALBSecurityGroup:
-    
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP and HTTPS to ALB
@@ -309,7 +286,6 @@ Resources:
           Value: !Sub "${AWS::StackName}-ALBSecurityGroup"
 
   MyDynamoDBTable:
-    
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub "${AWS::StackName}-MyApplicationData"
@@ -322,13 +298,11 @@ Resources:
           KeyType: "HASH"
 
   EC2InstanceProfile:
-    
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles: [!Ref EC2Role]
 
   EC2Role:
-    
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -358,7 +332,6 @@ Resources:
                 Resource: !GetAtt MyDynamoDBTable.Arn
 
   DynamoDBEndpoint:
-    
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref MyVPC
