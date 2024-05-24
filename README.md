@@ -28,7 +28,6 @@ Verifique se seu AWS CLI está instalado, se não estiver, basta segui a documen
 
 Tendo o AWS CLI instalado, você precisa configurá-lo com suas credenciais através do comando:
 
-'''sh
 aws configure
 
 ### Criar
