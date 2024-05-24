@@ -1,93 +1,103 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Template estendido com EC2 Auto Scaling, ALB e Dynamo
 
-
 Resources:
-  MyVPC:
+  # VPC principal da infraestrutura
+  MinhaVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MyVPC"
+          Value: !Sub "${AWS::StackName}-MinhaVPC"
       
-  MyInternetGateway:
+  # Internet Gateway para permitir acesso à Internet
+  MeuInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MyInternetGateway"
+          Value: !Sub "${AWS::StackName}-MeuInternetGateway"
      
-  GatewayAttachment:
+  # Anexando o Internet Gateway à VPC
+  AnexoGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref MyVPC
-      InternetGatewayId: !Ref MyInternetGateway
+      VpcId: !Ref MinhaVPC
+      InternetGatewayId: !Ref MeuInternetGateway
 
-  PublicSubnet1:
+  # Subnet pública na primeira zona de disponibilidade
+  SubnetPublica1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       CidrBlock: 10.0.3.0/24
       AvailabilityZone: sa-east-1a
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-PublicSubnet1"
+          Value: !Sub "${AWS::StackName}-SubnetPublica1"
 
-  PublicSubnet2:
+  # Subnet pública na segunda zona de disponibilidade
+  SubnetPublica2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       CidrBlock: 10.0.4.0/24
       AvailabilityZone: sa-east-1b
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-PublicSubnet2"
+          Value: !Sub "${AWS::StackName}-SubnetPublica2"
 
-  PublicRouteTable:
+  # Tabela de rotas públicas
+  TabelaRoteamentoPublico:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-PublicRouteTable"
+          Value: !Sub "${AWS::StackName}-TabelaRoteamentoPublico"
 
-  PublicRoute:
+  # Rota pública para Internet
+  RotaPublica:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref TabelaRoteamentoPublico
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref MyInternetGateway
+      GatewayId: !Ref MeuInternetGateway
 
-  SubnetRouteTableAssociation1:
+  # Associação da tabela de rotas com a primeira subnet pública
+  AssociacaoRotaSubnet1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref SubnetPublica1
+      RouteTableId: !Ref TabelaRoteamentoPublico
 
-  SubnetRouteTableAssociation2:
+  # Associação da tabela de rotas com a segunda subnet pública
+  AssociacaoRotaSubnet2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref SubnetPublica2
+      RouteTableId: !Ref TabelaRoteamentoPublico
 
-  MySubnet:
+  # Subnet privada para instâncias EC2
+  SubnetPrivada:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       CidrBlock: 10.0.1.0/24
       AvailabilityZone: sa-east-1a
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MySubnet"
+          Value: !Sub "${AWS::StackName}-SubnetPrivada"
 
-  MySecurityGroup:
+  # Grupo de segurança para permitir acesso SSH e HTTP
+  GrupoSeguranca:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Permitir SSH
-      VpcId: !Ref MyVPC
+      GroupDescription: Permitir SSH e HTTP
+      VpcId: !Ref MinhaVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -99,32 +109,33 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MySecurityGroup"
+          Value: !Sub "${AWS::StackName}-GrupoSeguranca"
 
-  MyEC2Instance:
+  # Instância EC2 com perfil IAM e acesso SSH
+  MinhaInstanciaEC2:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-04716897be83e3f04 
+      ImageId: ami-04716897be83e3f04
       InstanceType: t2.medium
-      KeyName: acesso-gomes 
+      KeyName: acesso-gomes
       SecurityGroupIds:
-        - !Ref MySecurityGroup
-      SubnetId: !Ref MySubnet
-      IamInstanceProfile: !Ref EC2InstanceProfile 
+        - !Ref GrupoSeguranca
+      SubnetId: !Ref SubnetPrivada
+      IamInstanceProfile: !Ref PerfilInstanciaEC2
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MyEC2Instance"
+          Value: !Sub "${AWS::StackName}-MinhaInstanciaEC2"
 
-  AppLaunchConfig:
-    
+  # Configuração de lançamento para Auto Scaling
+  ConfiguracaoLancamento:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-04716897be83e3f04 
+      ImageId: ami-04716897be83e3f04
       InstanceType: t2.medium
       KeyName: acesso-gomes
       SecurityGroups:
-        - Ref: MySecurityGroup 
-      IamInstanceProfile: !Ref EC2InstanceProfile 
+        - Ref: GrupoSeguranca
+      IamInstanceProfile: !Ref PerfilInstanciaEC2
       UserData: 
         Fn::Base64: |
           #!/bin/bash
@@ -151,18 +162,19 @@ Resources:
           # Executar a aplicação
           python3 app.py
 
-  AppAutoScalingGroup:
+  # Grupo de Auto Scaling para gerenciar instâncias EC2
+  GrupoAutoScaling:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-        - Ref: PublicSubnet1
-        - Ref: PublicSubnet2
+        - Ref: SubnetPublica1
+        - Ref: SubnetPublica2
       LaunchConfigurationName:
-        Ref: AppLaunchConfig
+        Ref: ConfiguracaoLancamento
       MinSize: '3'
       MaxSize: '4'
       TargetGroupARNs:
-        - Ref: MyAppTargetGroup
+        - Ref: MeuTargetGroupApp
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB
       MetricsCollection:
@@ -172,30 +184,33 @@ Resources:
           Value: ASG-EC2-Instance
           PropagateAtLaunch: true
 
-  ScaleUpPolicy:
+  # Política de escalação para aumentar a capacidade
+  PoliticaAumento:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AutoScalingGroupName:
-        Ref: AppAutoScalingGroup
+        Ref: GrupoAutoScaling
       PolicyType: SimpleScaling
       AdjustmentType: ChangeInCapacity
       Cooldown: '300'
       ScalingAdjustment: '1'
 
-  ScaleDownPolicy:
+  # Política de escalação para diminuir a capacidade
+  PoliticaReducao:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AutoScalingGroupName:
-        Ref: AppAutoScalingGroup
+        Ref: GrupoAutoScaling
       PolicyType: SimpleScaling
       AdjustmentType: ChangeInCapacity
       Cooldown: '300'
       ScalingAdjustment: '-1'
 
-  HighCpuAlarm:
+  # Alarme de CPU alta para aumentar a capacidade
+  AlarmeCpuAlta:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Alarm when CPU exceeds 70%"
+      AlarmDescription: "Alarme quando a CPU excede 70%"
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
@@ -204,16 +219,17 @@ Resources:
       Threshold: '70'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: ScaleUpPolicy
+        - Ref: PoliticaAumento
       Dimensions:
         - Name: AutoScalingGroupName
           Value: 
-            Ref: AppAutoScalingGroup
+            Ref: GrupoAutoScaling
 
-  LowCpuAlarm:
+  # Alarme de CPU baixa para reduzir a capacidade
+  AlarmeCpuBaixa:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Alarm when CPU falls below 30%"
+      AlarmDescription: "Alarme quando a CPU cai abaixo de 30%"
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
@@ -222,41 +238,44 @@ Resources:
       Threshold: '30'
       ComparisonOperator: LessThanOrEqualToThreshold
       AlarmActions:
-        - Ref: ScaleDownPolicy
+        - Ref: PoliticaReducao
       Dimensions:
         - Name: AutoScalingGroupName
           Value: 
-            Ref: AppAutoScalingGroup
+            Ref: GrupoAutoScaling
 
-  MyALB:
+  # Application Load Balancer para distribuir o tráfego
+  MeuALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub "${AWS::StackName}-MyALB"
+      Name: !Sub "${AWS::StackName}-MeuALB"
       Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - !Ref SubnetPublica1
+        - !Ref SubnetPublica2
       SecurityGroups:
-        - !Ref ALBSecurityGroup
+        - !Ref GrupoSegurancaALB
       Scheme: internet-facing
       Type: application
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-MyALB"
+          Value: !Sub "${AWS::StackName}-MeuALB"
 
-  MyALBListener:
+  # Listener do ALB para encaminhar tráfego
+  ListenerALB:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref MyAppTargetGroup
-      LoadBalancerArn: !Ref MyALB
+          TargetGroupArn: !Ref MeuTargetGroupApp
+      LoadBalancerArn: !Ref MeuALB
       Port: 80
       Protocol: HTTP
 
-  MyAppTargetGroup:
+  # Target group para o ALB
+  MeuTargetGroupApp:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       Protocol: HTTP
       Port: 5000
       HealthCheckEnabled: true
@@ -267,11 +286,12 @@ Resources:
       HealthyThresholdCount: 3
       UnhealthyThresholdCount: 3
 
-  ALBSecurityGroup:
+  # Grupo de segurança para o ALB
+  GrupoSegurancaALB:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP and HTTPS to ALB
-      VpcId: !Ref MyVPC
+      GroupDescription: Permitir HTTP e HTTPS para o ALB
+      VpcId: !Ref MinhaVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -283,12 +303,13 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-ALBSecurityGroup"
+          Value: !Sub "${AWS::StackName}-GrupoSegurancaALB"
 
-  MyDynamoDBTable:
+  # Tabela DynamoDB para armazenar dados da aplicação
+  TabelaDynamoDB:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${AWS::StackName}-MyApplicationData"
+      TableName: !Sub "${AWS::StackName}-DadosAplicacao"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: "Id"
@@ -297,12 +318,14 @@ Resources:
         - AttributeName: "Id"
           KeyType: "HASH"
 
-  EC2InstanceProfile:
+  # Perfil de instância EC2 com role IAM
+  PerfilInstanciaEC2:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      Roles: [!Ref EC2Role]
+      Roles: [!Ref RoleEC2]
 
-  EC2Role:
+  # Role IAM para instâncias EC2 com permissões de acesso ao DynamoDB
+  RoleEC2:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -313,7 +336,7 @@ Resources:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: DynamoDBAccess
+        - PolicyName: PermissaoDynamoDB
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -327,15 +350,14 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:UpdateItem
                   - dynamodb:DeleteItem
-                  - dynamodb:Scan
-                  - dynamodb:Query
-                Resource: !GetAtt MyDynamoDBTable.Arn
+                Resource: !GetAtt TabelaDynamoDB.Arn
 
-  DynamoDBEndpoint:
+  # Endpoint para acessar o DynamoDB
+  EndpointDynamoDB:
     Type: AWS::EC2::VPCEndpoint
     Properties:
-      VpcId: !Ref MyVPC
+      VpcId: !Ref MinhaVPC
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
       VpcEndpointType: Gateway
       RouteTableIds:
-        - !Ref PublicRouteTable
+        - !Ref TabelaRoteamentoPublico
