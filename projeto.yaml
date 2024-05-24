@@ -1,0 +1,368 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template estendido com EC2 Auto Scaling, ALB e Dynamo
+
+
+Resources:
+  MyVPC:
+    
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MyVPC"
+      
+
+  MyInternetGateway:
+    
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MyInternetGateway"
+     
+
+  GatewayAttachment:
+    
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
+
+  PublicSubnet1:
+    
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: sa-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicSubnet1"
+
+  PublicSubnet2:
+    
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: sa-east-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicSubnet2"
+
+  PublicRouteTable:
+    
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-PublicRouteTable"
+
+  PublicRoute:
+    
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyInternetGateway
+
+  SubnetRouteTableAssociation1:
+    
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  SubnetRouteTableAssociation2:
+    
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  MySubnet:
+    
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: sa-east-1a
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MySubnet"
+
+  MySecurityGroup:
+    
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permitir SSH
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MySecurityGroup"
+
+  MyEC2Instance:
+    
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-04716897be83e3f04 # Substitua por uma AMI válida em sua região
+      InstanceType: t2.medium
+      KeyName: EnzoProjeto # Substitua por sua chave pública EC2 Key Pair existente
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      SubnetId: !Ref MySubnet
+      IamInstanceProfile: !Ref EC2InstanceProfile # Adicionando o instance profile
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MyEC2Instance"
+
+  AppLaunchConfig:
+    
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-04716897be83e3f04 # Substitua pela AMI da sua aplicação
+      InstanceType: t2.medium
+      KeyName: EnzoProjeto
+      SecurityGroups:
+        - Ref: MySecurityGroup # Referencie o seu Security Group aqui
+      IamInstanceProfile: !Ref EC2InstanceProfile # Adicionando o instance profile
+      UserData: 
+        Fn::Base64: |
+          #!/bin/bash
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          set -x
+
+          # Atualizar e instalar dependências
+          sudo apt-get update -y
+          sudo apt-get upgrade -y
+          sudo apt-get install -y python3-pip git
+
+          echo "export STACK_NAME=${AWS::StackName}" | sudo tee -a /etc/profile.d/stackname.sh
+          source /etc/profile.d/stackname.sh
+          
+          # Clonar o repositório do GitHub
+          git clone https://github.com/EnzoLuidge/Cloud_app.git /home/ubuntu/Cloud_app
+
+          # Entrar no diretório clonado
+          cd /home/ubuntu/Cloud_app
+
+          # Instalar dependências do Python
+          pip3 install -r requirements.txt --break-system-packages
+
+          # Executar a aplicação
+          python3 app.py
+
+  AppAutoScalingGroup:
+    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+      LaunchConfigurationName:
+        Ref: AppLaunchConfig
+      MinSize: '3'
+      MaxSize: '4'
+      TargetGroupARNs:
+        - Ref: MyAppTargetGroup
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      MetricsCollection:
+        - Granularity: "1Minute"
+      Tags:
+        - Key: Name
+          Value: ASG-EC2-Instance
+          PropagateAtLaunch: true
+
+  ScaleUpPolicy:
+    
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: AppAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '300'
+      ScalingAdjustment: '1'
+
+  ScaleDownPolicy:
+    
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: AppAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '300'
+      ScalingAdjustment: '-1'
+
+  HighCpuAlarm:
+    
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm when CPU exceeds 70%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '70'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - Ref: ScaleUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: 
+            Ref: AppAutoScalingGroup
+
+  LowCpuAlarm:
+    
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm when CPU falls below 30%"
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '30'
+      ComparisonOperator: LessThanOrEqualToThreshold
+      AlarmActions:
+        - Ref: ScaleDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: 
+            Ref: AppAutoScalingGroup
+
+  MyALB:
+    
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-MyALB"
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Scheme: internet-facing
+      Type: application
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-MyALB"
+
+  MyALBListener:
+    
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyAppTargetGroup
+      LoadBalancerArn: !Ref MyALB
+      Port: 80
+      Protocol: HTTP
+
+  MyAppTargetGroup:
+    
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref MyVPC
+      Protocol: HTTP
+      Port: 5000
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+
+  ALBSecurityGroup:
+    
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and HTTPS to ALB
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ALBSecurityGroup"
+
+  MyDynamoDBTable:
+    
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-MyApplicationData"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: "Id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "Id"
+          KeyType: "HASH"
+
+  EC2InstanceProfile:
+    
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EC2Role]
+
+  EC2Role:
+    
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !GetAtt MyDynamoDBTable.Arn
+
+  DynamoDBEndpoint:
+    
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref MyVPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
