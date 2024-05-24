@@ -26,6 +26,10 @@ def index():
     # Renderizar os posts em uma página HTML
     return render_template('index.html', posts=items)
 
+@app.route('/health')
+def health():
+    return 'OK', 200
+
 @app.route('/post', methods=['POST'])
 def post():
     # Capturar dados do formulário
