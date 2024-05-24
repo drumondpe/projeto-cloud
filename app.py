@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 # Configuração do cliente DynamoDB
-table_name = "stackzada-UserManagement"
+table_name = "jameStack-UserManagement"
 dynamodb = boto3.resource('dynamodb', region_name='sa-east-1')
 table = dynamodb.Table(table_name)
 

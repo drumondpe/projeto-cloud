@@ -154,10 +154,10 @@ Resources:
           source /etc/profile.d/stackname.sh
           
           # Clonar o repositório do GitHub
-          git clone https://github.com/EnzoLuidge/Cloud_app.git /home/ubuntu/Cloud_app
+          git clone https://github.com/drumondpe/projeto-cloud.git /home/ubuntu/projeto-cloud
 
           # Entrar no diretório clonado
-          cd /home/ubuntu/Cloud_app
+          cd /home/ubuntu/projeto-cloud
 
           # Instalar dependências do Python
           pip3 install -r requirements.txt --break-system-packages
